@@ -1,8 +1,10 @@
-// tela de relatórios — exibe estatísticas agregadas do período selecionado
-// permite filtrar por data de início e fim; sem filtro mostra tudo
+// tela de relatórios — estatísticas agregadas do período selecionado
+// filtros de data + grid de métricas + card de tempo médio parado
+// lógica de carregamento e filtros: idêntica à versão anterior
 import 'package:flutter/material.dart';
 import '../models/relatorio_model.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/status_card.dart';
 
 class RelatoriosScreen extends StatefulWidget {
@@ -14,26 +16,26 @@ class RelatoriosScreen extends StatefulWidget {
 }
 
 class _RelatoriosScreenState extends State<RelatoriosScreen> {
-  RelatorioModel? _relatorio; // dados do relatório vindos da api
+  RelatorioModel? _relatorio;
   bool    _carregando = true;
   String? _erro;
-  String? _dataInicio; // filtro de data início no formato "yyyy-MM-dd"
-  String? _dataFim;    // filtro de data fim no formato "yyyy-MM-dd"
+  String? _dataInicio; // filtro de data início — formato "yyyy-MM-dd"
+  String? _dataFim;    // filtro de data fim — formato "yyyy-MM-dd"
 
   @override
   void initState() {
     super.initState();
-    _carregar(); // carrega ao abrir a tela, s/ filtros
+    _carregar(); // carrega s/ filtros ao abrir a tela
   }
 
-  // busca o relatório na api c/ os filtros de data atuais
+  // busca o relatório c/ os filtros de data atuais (null = sem filtro)
   Future<void> _carregar() async {
     setState(() { _carregando = true; _erro = null; });
     try {
       final dados = await ApiService.getRelatorio(
         widget.token,
-        dataInicio: _dataInicio, // null = sem filtro
-        dataFim: _dataFim,
+        dataInicio: _dataInicio,
+        dataFim:    _dataFim,
       );
       setState(() => _relatorio = dados);
     } catch (e) {
@@ -43,23 +45,28 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     }
   }
 
-  // abre o seletor de data nativo do flutter
-  // isInicio=true atualiza _dataInicio, false atualiza _dataFim
+  // abre o date picker nativo e atualiza o filtro correspondente
   Future<void> _selecionarData({required bool isInicio}) async {
     final data = await showDatePicker(
-      context: context,
+      context:     context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2024), // data mínima selecionável
-      lastDate: DateTime.now(),  // n permite selecionar datas futuras
-      // aplica o tema azul apple no date picker
+      firstDate:   DateTime(2024),
+      lastDate:    DateTime.now(),
+      // aplica o tema dark no date picker — accent como cor primária
       builder: (ctx, child) => Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF007AFF)),
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary:   C.accent,
+            onPrimary: C.bg,
+            surface:   C.surface,
+            onSurface: C.hi,
+          ),
         ),
         child: child!,
       ),
     );
     if (data == null) return; // usuário cancelou o seletor
+
     // formata p/ "yyyy-MM-dd" q é o formato esperado pela api
     final formatada =
         '${data.year}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
@@ -73,7 +80,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     _carregar(); // recarrega automaticamente c/ o novo filtro
   }
 
-  // remove os dois filtros e recarrega tudo
+  // remove os dois filtros e recarrega td
   void _limparFiltros() {
     setState(() { _dataInicio = null; _dataFim = null; });
     _carregar();
@@ -82,46 +89,36 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      // padding extra embaixo p/ n ficar atrás da pill nav
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Relatórios',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C1C1E),
-              letterSpacing: -0.5,
-            ),
-          ),
+          Text('RELATÓRIOS', style: T.heading),
           const SizedBox(height: 16),
 
-          // ── filtros de data ──────────────────────────────────────────────
-
+          // ── filtros de data ───────────────────────────────────────────────
           Row(
             children: [
-              // botão de data início
+              // botão data início
               Expanded(
                 child: _botaoData(
-                  label: _dataInicio ?? 'Data início',
-                  icone: Icons.calendar_today_rounded,
-                  isActive: _dataInicio != null, // azul qdo tem valor, cinza qdo vazio
-                  onTap: () => _selecionarData(isInicio: true),
+                  label:    _dataInicio ?? 'Data início',
+                  icone:    Icons.calendar_today_rounded,
+                  isActive: _dataInicio != null,
+                  onTap:    () => _selecionarData(isInicio: true),
                 ),
               ),
               const SizedBox(width: 10),
-              // botão de data fim
+              // botão data fim
               Expanded(
                 child: _botaoData(
-                  label: _dataFim ?? 'Data fim',
-                  icone: Icons.calendar_month_rounded,
+                  label:    _dataFim ?? 'Data fim',
+                  icone:    Icons.calendar_month_rounded,
                   isActive: _dataFim != null,
-                  onTap: () => _selecionarData(isInicio: false),
+                  onTap:    () => _selecionarData(isInicio: false),
                 ),
               ),
-              // botão de limpar filtros — só aparece se algum filtro ativo
+              // botão limpar filtros — só aparece qdo algum filtro está ativo
               if (_dataInicio != null || _dataFim != null) ...[
                 const SizedBox(width: 8),
                 GestureDetector(
@@ -129,11 +126,12 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0x14FF3B30),
-                      borderRadius: BorderRadius.circular(12),
+                      color:        C.accentA08,
+                      borderRadius: BorderRadius.circular(8),
+                      border:       Border.all(color: C.accentA20),
                     ),
                     child: const Icon(Icons.close_rounded,
-                        color: Color(0xFFFF3B30), size: 18),
+                        color: C.accent, size: 18),
                   ),
                 ),
               ],
@@ -141,42 +139,32 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── estados da tela ──────────────────────────────────────────────
-
+          // ── estados da tela ───────────────────────────────────────────────
           if (_carregando)
-            const Center(
-                child: CircularProgressIndicator(
-                    color: Color(0xFF007AFF)))
+            const Center(child: CircularProgressIndicator(color: C.accent))
           else if (_erro != null)
             Center(
               child: Column(
                 children: [
                   Text(_erro!,
-                      style: const TextStyle(color: Color(0xFFFF3B30)),
+                      style: T.bodySec.copyWith(color: C.accent),
                       textAlign: TextAlign.center),
                   const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: _carregar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF007AFF),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text('Tentar novamente'),
+                    onPressed:   _carregar,
+                    child: const Text('TENTAR NOVAMENTE'),
                   ),
                 ],
               ),
             )
           else if (_relatorio != null)
-            _buildConteudo(_relatorio!), // exibe o relatório qdo disponível
+            _buildConteudo(_relatorio!),
         ],
       ),
     );
   }
 
-  // conteúdo principal: badge do período + 4 cards + card de tempo médio
+  // conteúdo principal qdo os dados estão disponíveis
   Widget _buildConteudo(RelatorioModel r) {
     // sem dados no período selecionado
     if (r.totalDias == 0) {
@@ -188,24 +176,16 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
-                    color: Color(0x148E8E93), shape: BoxShape.circle),
+                    color: C.accentA08, shape: BoxShape.circle),
                 child: const Icon(Icons.bar_chart_rounded,
-                    color: Color(0xFF8E8E93), size: 40),
+                    color: C.accent, size: 40),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Nenhum dado para o período.',
-                style: TextStyle(
-                  color: Color(0xFF1C1C1E),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
+              Text('Nenhum dado p/ o período.',
+                  style: T.body.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
-              const Text(
-                'Tente selecionar um período diferente.',
-                style: TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
-              ),
+              Text('Tente selecionar um período diferente.',
+                  style: T.bodySec),
             ],
           ),
         ),
@@ -215,129 +195,100 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // badge azul mostrando quantos dias foram analisados
+        // badge c/ qtd de dias analisados
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0x1F007AFF),
-            borderRadius: BorderRadius.circular(14),
+            color:        C.accentA08,
+            borderRadius: BorderRadius.circular(6),
+            border:       Border.all(color: C.accentA20),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.date_range_rounded,
-                  color: Color(0xFF007AFF), size: 16),
+              const Icon(Icons.date_range_rounded, color: C.accent, size: 16),
               const SizedBox(width: 8),
+              // pluraliza corretamente: "1 dia analisado" / "3 dias analisados"
               Text(
-                // pluraliza corretamente: "1 dia analisado" / "3 dias analisados"
-                '${r.totalDias} dia${r.totalDias > 1 ? 's' : ''} analisado${r.totalDias > 1 ? 's' : ''}',
-                style: const TextStyle(
-                  color: Color(0xFF007AFF),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+                '${r.totalDias} dia${r.totalDias > 1 ? 's' : ''} '
+                'analisado${r.totalDias > 1 ? 's' : ''}',
+                style: T.small.copyWith(
+                    color: C.accent, fontWeight: FontWeight.w600),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
 
-        // 4 cards de métricas em grid 2x2
+        // ── grid 2x2 de métricas ──────────────────────────────────────────
+        // usa StatusCard c/ ícone monocromático (accent) — sem cor diferente p/ cada card
         GridView.count(
           crossAxisCount: 2,
-          shrinkWrap: true,
+          shrinkWrap:     true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero, // remove o padding interno padrão do gridview
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.0, // cards quadrados
+          padding:          EdgeInsets.zero,
+          crossAxisSpacing: 10,
+          mainAxisSpacing:  10,
+          childAspectRatio: 1.1, // ligeiramente retangular
           children: [
             StatusCard(
               titulo: 'MÉDIA DE PEÇAS',
-              valor: r.mediaPecas.toStringAsFixed(1), // ex: "42.3"
-              icone: Icons.show_chart_rounded,
-              cor: const Color(0xFF007AFF),
+              valor:  r.mediaPecas.toStringAsFixed(1), // ex: "42.3"
+              icone:  Icons.show_chart_rounded,
             ),
             StatusCard(
               titulo: 'MÁXIMO',
-              valor: r.maximoPecas.toString(),
-              icone: Icons.arrow_upward_rounded,
-              cor: const Color(0xFF34C759), // verde
+              valor:  r.maximoPecas.toString(),
+              icone:  Icons.arrow_upward_rounded,
             ),
             StatusCard(
               titulo: 'MÍNIMO',
-              valor: r.minimoPecas.toString(),
-              icone: Icons.arrow_downward_rounded,
-              cor: const Color(0xFFFF9500), // laranja
+              valor:  r.minimoPecas.toString(),
+              icone:  Icons.arrow_downward_rounded,
             ),
             StatusCard(
               titulo: 'ALERTAS',
-              valor: r.totalAlertas.toString(),
-              icone: Icons.warning_amber_rounded,
-              cor: const Color(0xFFFF3B30), // vermelho
+              valor:  r.totalAlertas.toString(),
+              icone:  Icons.warning_amber_rounded,
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
-        // card separado p/ o tempo médio parado — c/ destaque roxo
+        // ── card de tempo médio parado ────────────────────────────────────
+        // largura total, separado do grid p/ ter mais destaque
         Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0F000000),
-                blurRadius: 16,
-                offset: Offset(0, 4),
+            color:        C.surface,
+            borderRadius: BorderRadius.circular(8),
+            border:       Border.all(color: C.border),
+          ),
+          child: Row(
+            children: [
+              // ícone em accent — mesma cor dos outros ícones (regra 3 cores)
+              const Icon(Icons.timer_off_rounded, color: C.accent, size: 20),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tempo médio parado', style: T.bodySec),
+                  // valor em JetBrains Mono accent — destaque como as métricas
+                  Text(
+                    '${r.mediaTempoParadoSeg.toStringAsFixed(0)}s por dia',
+                    style: T.metricM,
+                  ),
+                ],
               ),
             ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // ícone roxo
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFAF52DE).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.timer_off_rounded,
-                      color: Color(0xFFAF52DE), size: 24),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tempo médio parado',
-                      style: TextStyle(
-                          color: Color(0xFF6C6C70), fontSize: 13),
-                    ),
-                    Text(
-                      // arredonda p/ inteiro e adiciona "s por dia"
-                      '${r.mediaTempoParadoSeg.toStringAsFixed(0)}s por dia',
-                      style: const TextStyle(
-                        color: Color(0xFFAF52DE),
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ),
       ],
     );
   }
 
-  // botão de seleção de data — muda de aparência qdo tem valor (isActive=true)
+  // botão de seleção de data — dark c/ borda; ativo usa accentA08 + accentA20
   Widget _botaoData({
     required String label,
     required IconData icone,
@@ -347,47 +298,30 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          // fundo azul claro qdo ativo, branco qdo inativo
-          color: isActive ? const Color(0x1F007AFF) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color:        isActive ? C.accentA08 : C.surface,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive
-                ? const Color(0x4D007AFF)
-                : const Color(0x66C6C6C8),
+            color: isActive ? C.accentA20 : C.border,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           children: [
             Icon(
               icone,
-              color: isActive
-                  ? const Color(0xFF007AFF)
-                  : const Color(0xFF8E8E93),
-              size: 16,
+              color: isActive ? C.accent : C.mid,
+              size:  16,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: isActive
-                      ? const Color(0xFF007AFF)
-                      : const Color(0xFF6C6C70),
-                  fontSize: 13,
-                  fontWeight:
-                      isActive ? FontWeight.w600 : FontWeight.normal,
+                style: T.small.copyWith(
+                  color:      isActive ? C.accent : C.mid,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 ),
-                overflow: TextOverflow.ellipsis, // corta c/ "..." se o texto for longo
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

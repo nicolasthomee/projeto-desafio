@@ -28,6 +28,7 @@ class ProducaoProvider extends ChangeNotifier {
   // inicia o polling a cada 5 segundos
   // chama imediatamente uma vez p/ n esperar o primeiro intervalo
   void iniciarPolling(String token) {
+    pararPolling(); // cancela timer anterior antes de criar um novo
     _buscarDados(token); // primeira busca imediata
 
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {

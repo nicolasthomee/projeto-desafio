@@ -1,9 +1,11 @@
-// tela de histórico — exibe os registros diários de produção
-// mostra um gráfico de barras dos últimos 7 dias + lista de cards
+// tela de histórico — registros diários de produção
+// gráfico de barras 7 dias + lista de cards compactos
+// lógica de carregamento e pull-to-refresh: idêntica à versão anterior
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // lib de gráficos
+import 'package:fl_chart/fl_chart.dart';
 import '../models/historico_model.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class HistoricoScreen extends StatefulWidget {
   final String token;
@@ -14,14 +16,14 @@ class HistoricoScreen extends StatefulWidget {
 }
 
 class _HistoricoScreenState extends State<HistoricoScreen> {
-  List<HistoricoModel> _historico = []; // lista de registros vinda da api
+  List<HistoricoModel> _historico = [];
   bool    _carregando = true;
   String? _erro;
 
   @override
   void initState() {
     super.initState();
-    _carregar(); // busca os dados assim q a tela abre
+    _carregar(); // busca os dados ao abrir a tela
   }
 
   // busca o histórico completo na api
@@ -41,8 +43,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   Widget build(BuildContext context) {
     // estado 1: carregando
     if (_carregando) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF007AFF)));
+      return const Center(child: CircularProgressIndicator(color: C.accent));
     }
 
     // estado 2: erro
@@ -56,25 +57,16 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
-                    color: Color(0x14FF3B30), shape: BoxShape.circle),
+                    color: C.accentA08, shape: BoxShape.circle),
                 child: const Icon(Icons.error_outline_rounded,
-                    color: Color(0xFFFF3B30), size: 40),
+                    color: C.accent, size: 40),
               ),
               const SizedBox(height: 16),
-              Text(_erro!,
-                  style: const TextStyle(color: Color(0xFF6C6C70)),
-                  textAlign: TextAlign.center),
+              Text(_erro!, style: T.bodySec, textAlign: TextAlign.center),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _carregar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF007AFF),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text('Tentar novamente'),
+                onPressed:   _carregar,
+                child: const Text('TENTAR NOVAMENTE'),
               ),
             ],
           ),
@@ -93,25 +85,16 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
-                    color: Color(0x1F007AFF), shape: BoxShape.circle),
+                    color: C.accentA08, shape: BoxShape.circle),
                 child: const Icon(Icons.history_rounded,
-                    color: Color(0xFF007AFF), size: 40),
+                    color: C.accent, size: 40),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Nenhum histórico encontrado.',
-                style: TextStyle(
-                  color: Color(0xFF1C1C1E),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
+              Text('Nenhum histórico encontrado.',
+                  style: T.body.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
-              const Text(
-                'Feche um expediente para gerar dados.',
-                style: TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
+              Text('Feche um expediente p/ gerar dados.',
+                  style: T.bodySec, textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -120,41 +103,25 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
 
     // estado 4: dados disponíveis — gráfico + lista
     return RefreshIndicator(
-      color: const Color(0xFF007AFF),
-      onRefresh: _carregar, // arrastar p/ baixo recarrega
+      color:     C.accent,
+      onRefresh: _carregar,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        // padding extra embaixo p/ o conteúdo n ficar atrás da pill nav
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Histórico',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1E),
-                letterSpacing: -0.5,
-              ),
-            ),
+            Text('HISTÓRICO', style: T.heading),
             const SizedBox(height: 16),
 
-            // gráfico de barras dos últimos 7 dias
+            // gráfico de barras dos últimos 7 dias em accent
             _buildGrafico(),
             const SizedBox(height: 24),
 
-            const Text(
-              'Registros Diários',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1C1C1E),
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // mapeia cada item do histórico p/ um card
+            Text('REGISTROS DIÁRIOS', style: T.sectionLabel),
+            const SizedBox(height: 10),
+
+            // mapeia cada item do histórico p/ um card compacto
             ..._historico.map(_buildCard),
           ],
         ),
@@ -162,70 +129,50 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
     );
   }
 
-  // monta o gráfico de barras com gradiente azul
+  // gráfico de barras — accent monocromático, fundo dark, grid em border
   Widget _buildGrafico() {
-    // pega só os últimos 7 registros e inverte a ordem p/ exibir do mais antigo ao mais novo
-    final dados = _historico.take(7).toList().reversed.toList();
+    // pega só os últimos 7 registros e inverte p/ exibir do mais antigo ao mais novo
+    final dados  = _historico.take(7).toList().reversed.toList();
     final maxVal = dados.map((e) => e.totalPecas).reduce((a, b) => a > b ? a : b);
-    // guarda: se todos os valores forem 0, usa 10 como máximo p/ evitar divisão por zero
-    final maxY   = maxVal == 0 ? 10.0 : maxVal * 1.25;
+    // se td for 0, usa 10 p/ evitar divisão por zero no eixo y
+    final maxY   = (maxVal == 0 ? 10.0 : maxVal * 1.25).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Peças por dia',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1C1C1E),
-            letterSpacing: -0.2,
-          ),
-        ),
-        const Text(
-          'Últimos 7 dias',
-          style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
-        ),
+        Text('PEÇAS POR DIA', style: T.sectionLabel),
+        const SizedBox(height: 4),
+        Text('Últimos 7 dias', style: T.small),
         const SizedBox(height: 12),
         Container(
           height: 210,
           padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0F000000),
-                blurRadius: 16,
-                offset: Offset(0, 4),
-              ),
-            ],
+            color:        C.surface,
+            borderRadius: BorderRadius.circular(8),
+            border:       Border.all(color: C.border),
           ),
           child: BarChart(
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
-              maxY: maxY.toDouble(), // limite superior do eixo y
+              maxY:      maxY,
               barGroups: dados.asMap().entries.map((entry) {
                 return BarChartGroupData(
-                  x: entry.key, // posição no eixo x
+                  x: entry.key,
                   barRods: [
                     BarChartRodData(
-                      toY: entry.value.totalPecas.toDouble(), // altura da barra
-                      // gradiente azul de baixo p/ cima
-                      gradient: const LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [Color(0xFF007AFF), Color(0xFF5AC8FA)],
-                      ),
-                      width: 22,
+                      toY:   entry.value.totalPecas.toDouble(),
+                      // cor única: accent — sem gradiente (regra das 3 cores)
+                      color: C.accent,
+                      width: 20,
                       borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(7)), // só arredonda o topo
+                          top: Radius.circular(4)), // arredonda só o topo
                     ),
                   ],
                 );
               }).toList(),
               titlesData: FlTitlesData(
-                // labels no eixo inferior: data formatada "dd/mm"
+                // labels no eixo inferior: "dd/mm"
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -240,9 +187,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                           : data;
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(label,
-                            style: const TextStyle(
-                                color: Color(0xFFAEAEB2), fontSize: 10)),
+                        child: Text(label, style: T.small),
                       );
                     },
                   ),
@@ -250,26 +195,23 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                 // labels no eixo esquerdo: valores numéricos
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 32, // espaço reservado p/ os números
-                    getTitlesWidget: (value, meta) => Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(
-                          color: Color(0xFFAEAEB2), fontSize: 10),
-                    ),
+                    showTitles:   true,
+                    reservedSize: 36,
+                    getTitlesWidget: (value, meta) =>
+                        Text(value.toInt().toString(), style: T.small),
                   ),
                 ),
-                // oculta os títulos do topo e da direita (desnecessários)
+                // oculta topo e direita — desnecessários
                 topTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false)),
                 rightTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false)),
               ),
-              // linhas de grade horizontais sutis
+              // linhas de grade em border — sutis no dark
               gridData: const FlGridData(
                 getDrawingHorizontalLine: _gridLine,
               ),
-              borderData: FlBorderData(show: false), // sem borda ao redor do gráfico
+              borderData: FlBorderData(show: false),
             ),
           ),
         ),
@@ -277,62 +219,57 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
     );
   }
 
-  // estilo das linhas de grade do gráfico — cinza bem claro
-  // precisa ser static pq é referenciada como const no FlGridData
+  // linha de grade do gráfico — border color, espessura 1
+  // static pq é referenciada como callback no FlGridData
   static FlLine _gridLine(double _) =>
-      const FlLine(color: Color(0xFFF2F2F7), strokeWidth: 1);
+      const FlLine(color: Color(0xFF30363D), strokeWidth: 1);
 
-  // card de um registro diário c/ data, peças, tempo parado e alertas
+  // card de registro diário — compacto c/ data em destaque + métricas secundárias
   Widget _buildCard(HistoricoModel item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color:        C.surface,
+        borderRadius: BorderRadius.circular(8),
+        border:       Border.all(color: C.border),
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        // ícone de calendário à esquerda
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0x1F007AFF),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.calendar_today_rounded,
-              color: Color(0xFF007AFF), size: 20),
-        ),
-        // data do expediente como título
-        title: Text(
-          item.data ?? 'Data não registrada',
-          style: const TextStyle(
-            color: Color(0xFF1C1C1E),
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
-          ),
-        ),
-        // resumo em uma linha: peças • tempo parado • alertas
-        subtitle: Text(
-          '${item.totalPecas} peças  •  ${item.tempoParadoFormatado} parado  •  ${item.totalAlertas} alertas',
-          style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12),
-        ),
-        // número de peças em destaque à direita
-        trailing: Text(
-          '${item.totalPecas}',
-          style: const TextStyle(
-            color: Color(0xFF007AFF),
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // ícone de calendário em accent
+            const Icon(Icons.calendar_today_rounded,
+                color: C.accent, size: 18),
+            const SizedBox(width: 14),
+
+            // data e métricas secundárias
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // data do expediente — peso maior, cor primária
+                  Text(
+                    item.data ?? 'Data não registrada',
+                    style: T.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  // métricas em linha: peças • tempo • alertas
+                  Text(
+                    '${item.totalPecas} peças  ·  '
+                    '${item.tempoParadoFormatado} parado  ·  '
+                    '${item.totalAlertas} alertas',
+                    style: T.small,
+                  ),
+                ],
+              ),
+            ),
+
+            // número de peças em destaque à direita — JetBrains Mono accent
+            Text(
+              '${item.totalPecas}',
+              style: T.metricM,
+            ),
+          ],
         ),
       ),
     );

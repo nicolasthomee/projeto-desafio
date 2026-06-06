@@ -1,86 +1,63 @@
-// card de métrica — exibe um ícone colorido, um valor em destaque e um título
-// usado no dashboard (peças produzidas, tempo parado) e tbm nos relatórios
+// card de métrica reutilizável — usado no dashboard e nos relatórios
+// dark industrial: ícone accent monocromático, número grande em JetBrains Mono
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class StatusCard extends StatelessWidget {
-  final String titulo;    // label descritivo em cima (ex: "PEÇAS PRODUZIDAS")
-  final String valor;     // valor principal em destaque (ex: "42")
-  final String? subtitulo; // linha extra opcional abaixo do título
+  final String titulo;    // rótulo descritivo (ex: "PEÇAS PRODUZIDAS")
+  final String valor;     // número / valor principal (ex: "142")
+  final String? subtitulo;// linha extra opcional abaixo do título
   final IconData icone;
-  final Color cor;        // cor do ícone e do fundo do ícone
+  // cor recebida p/ compatibilidade c/ chamadas existentes — ignorada no dark theme
+  // td usa accent (ciano) p/ manter a regra das 3 cores
+  // ignore: unused_field
+  final Color? cor;
 
   const StatusCard({
     super.key,
     required this.titulo,
     required this.valor,
-    this.subtitulo, // opcional — se n passar, n exibe
+    this.subtitulo,
     required this.icone,
-    required this.cor,
+    this.cor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      // card escuro c/ borda border — s/ sombra (combina c/ o fundo dark)
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000), // sombra bem suave
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color:        C.surface,
+        borderRadius: BorderRadius.circular(8),
+        border:       Border.all(color: C.border),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ícone c/ fundo colorido semitransparente
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: cor.withValues(alpha: 0.12), // 12% opac da cor do card
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icone, color: cor, size: 20),
-            ),
-            const SizedBox(height: 10),
-            // valor principal — número grande em destaque
-            Text(
-              valor,
-              style: const TextStyle(
-                color: Color(0xFF1C1C1E),
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-              ),
-            ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize:       MainAxisSize.min, // ocupa só o espaço necessário
+        children: [
+          // ícone monocromático em accent — sem container colorido
+          Icon(icone, color: C.accent, size: 18),
+          const SizedBox(height: 16),
+
+          // valor principal — fonte JetBrains Mono, grande, destaque visual
+          Text(valor, style: T.metricL),
+          const SizedBox(height: 4),
+
+          // rótulo descritivo — maiúsculo, pequeño, cor secundária
+          Text(
+            titulo,
+            style:    T.sectionLabel,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          // subtítulo opcional — exibido só se passado
+          if (subtitulo != null) ...[
             const SizedBox(height: 2),
-            // label descritivo em letras pequenas
-            Text(
-              titulo,
-              style: const TextStyle(
-                color: Color(0xFF6C6C70),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.2,
-              ),
-            ),
-            // subtítulo opcional — exibido apenas se passado
-            if (subtitulo != null) ...[
-              const SizedBox(height: 1),
-              Text(
-                subtitulo!,
-                style: const TextStyle(
-                  color: Color(0xFFAEAEB2),
-                  fontSize: 10,
-                ),
-              ),
-            ],
+            Text(subtitulo!, style: T.small),
           ],
-        ),
+        ],
       ),
     );
   }

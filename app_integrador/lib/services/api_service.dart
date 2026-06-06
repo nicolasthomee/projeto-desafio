@@ -13,7 +13,7 @@ import '../models/relatorio_model.dart';
 class ApiService {
   // ip e porta da fastapi rodando no notebook
   // altere aqui se mudar de rede ou de máquina
-  static const String BASE_URL = 'http://192.168.68.103:8000';
+  static const String baseUrl = 'http://192.168.68.105:8000';
 
   // se a api n responder em 10s, lança TimeoutException — evita esperar indefinidamente
   static const Duration _timeout = Duration(seconds: 10);
@@ -21,43 +21,52 @@ class ApiService {
   // monta os headers c/ o jwt bearer token p/ autenticar os requests protegidos
   static Map<String, String> _headers(String token) => {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer $token', // formato esperado pela api
+    'Authorization': 'Bearer $token',
   };
+
+  // extrai a mensagem de erro do corpo da resposta
+  // se o corpo não for JSON válido (ex: 500 retorna HTML), usa o fallback
+  static String _mensagemErro(http.Response response, {required String fallback}) {
+    if (response.statusCode == 500) return 'Erro interno do servidor (500)';
+    try {
+      final body = jsonDecode(response.body);
+      return body['detail']?.toString() ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
 
   // ── autenticação ───────────────────────────────────────────────────────────
 
   // cadastra novo usuário na api e retorna o jwt após login automático
   static Future<String> cadastrar(String email, String senha) async {
     final response = await http.post(
-      Uri.parse('$BASE_URL/auth/cadastro'),
+      Uri.parse('$baseUrl/auth/cadastro'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'senha': senha}),
     ).timeout(_timeout);
 
     if (response.statusCode == 201) {
-      // a api só cria o usuário no cadastro; o token vem pelo login
       return await login(email, senha);
     }
 
-    final erro = jsonDecode(response.body);
-    throw Exception(erro['detail'] ?? 'Erro ao cadastrar');
+    throw Exception(_mensagemErro(response, fallback: 'Erro ao cadastrar'));
   }
 
   // faz login e retorna o jwt — armazenado pelo AuthService p/ requests futuros
   static Future<String> login(String email, String senha) async {
     final response = await http.post(
-      Uri.parse('$BASE_URL/auth/login'),
+      Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'senha': senha}),
     ).timeout(_timeout);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['access_token'] as String; // extrai só o token do json
+      return data['access_token'] as String;
     }
 
-    final erro = jsonDecode(response.body);
-    throw Exception(erro['detail'] ?? 'E-mail ou senha incorretos');
+    throw Exception(_mensagemErro(response, fallback: 'E-mail ou senha incorretos'));
   }
 
   // ── produção ───────────────────────────────────────────────────────────────
@@ -65,7 +74,7 @@ class ApiService {
   // busca o registro mais recente de produção — chamado a cada 5s pelo polling
   static Future<ProducaoModel> getProducaoAtual(String token) async {
     final response = await http.get(
-      Uri.parse('$BASE_URL/producao'),
+      Uri.parse('$baseUrl/producao'),
       headers: _headers(token),
     ).timeout(_timeout);
 
@@ -90,7 +99,7 @@ class ApiService {
     if (dataFim != null)    params['data_fim']    = dataFim;
 
     // adiciona os filtros como query params na url: /historico?data_inicio=...
-    final uri = Uri.parse('$BASE_URL/historico').replace(queryParameters: params);
+    final uri = Uri.parse('$baseUrl/historico').replace(queryParameters: params);
 
     final response = await http.get(
       uri,
@@ -118,7 +127,7 @@ class ApiService {
     if (dataInicio != null) params['data_inicio'] = dataInicio;
     if (dataFim != null)    params['data_fim']    = dataFim;
 
-    final uri = Uri.parse('$BASE_URL/relatorios').replace(queryParameters: params);
+    final uri = Uri.parse('$baseUrl/relatorios').replace(queryParameters: params);
 
     final response = await http.get(
       uri,
@@ -138,15 +147,13 @@ class ApiService {
   // a api publica a mensagem no tópico mqtt e o esp32 executa
   static Future<void> enviarComando(String token, String comando) async {
     final response = await http.post(
-      Uri.parse('$BASE_URL/comando'),
+      Uri.parse('$baseUrl/comando'),
       headers: _headers(token),
       body: jsonEncode({'comando': comando}), // ex: {"comando": "PAUSAR"}
     ).timeout(_timeout);
 
-    if (response.statusCode == 200) return; // sucesso
+    if (response.statusCode == 200) return;
     if (response.statusCode == 401) throw Exception('Sessão expirada');
-
-    final erro = jsonDecode(response.body);
-    throw Exception(erro['detail'] ?? 'Erro ao enviar comando');
+    throw Exception(_mensagemErro(response, fallback: 'Erro ao enviar comando'));
   }
 }
