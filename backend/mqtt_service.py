@@ -9,6 +9,7 @@
 #   Isso é a "comunicação assíncrona" entre a API e o ESP32.
 
 import os
+import uuid
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
@@ -32,7 +33,7 @@ def publicar_comando(comando: str) -> bool:
     para gerenciar, sem reconexões automáticas para monitorar.
     """
     try:
-        client = mqtt.Client(client_id="fastapi_backend", clean_session=True)
+        client = mqtt.Client(client_id=f"fastapi_{uuid.uuid4().hex[:8]}", clean_session=True)
 
         # Conecta de forma síncrona (aguarda confirmação do broker)
         client.connect(BROKER, PORT, keepalive=10)
