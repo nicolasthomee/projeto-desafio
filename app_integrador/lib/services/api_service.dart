@@ -13,7 +13,7 @@ import '../models/relatorio_model.dart';
 class ApiService {
   // ip e porta da fastapi rodando no notebook
   // altere aqui se mudar de rede ou de máquina
-  static const String baseUrl = 'http://192.168.68.105:8000';
+  static const String baseUrl = 'http://192.168.3.135:8000';
 
   // se a api n responder em 10s, lança TimeoutException — evita esperar indefinidamente
   static const Duration _timeout = Duration(seconds: 10);

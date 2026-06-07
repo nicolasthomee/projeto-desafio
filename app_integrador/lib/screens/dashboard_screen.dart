@@ -329,67 +329,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── painel de status industrial ──────────────────────────────────────────────
   // borda esquerda colorida = principal indicador visual do estado da linha
   // LED (ponto) + ícone + texto — s/ mudar a cor base do componente
-  Widget _buildStatusPanel(ProducaoModel dados) {
-    final st = StatusStyle.of(dados.status); // estilo c/ base no status
+ Widget _buildStatusPanel(ProducaoModel dados) {
+  final st = StatusStyle.of(dados.status);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
       decoration: BoxDecoration(
-        color:        C.surface,
+        color: C.surface,
+        border: Border.all(color: C.border),
         borderRadius: BorderRadius.circular(8),
-        // borda esquerda em accent = indicador principal; demais bordas em border
-        border: Border(
-          left:   BorderSide(color: st.borderL, width: 3),
-          top:    const BorderSide(color: C.border),
-          right:  const BorderSide(color: C.border),
-          bottom: const BorderSide(color: C.border),
-        ),
       ),
-      child: Row(
-        children: [
-          // LED — ponto que indica atividade; glow qdo accent 100%
-          Container(
-            width:  10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: st.led,
-              shape: BoxShape.circle,
-              // glow só qdo o LED está em accent pleno (linha ativa)
-              boxShadow: st.led == C.accent
-                  ? const [BoxShadow(
-                      color:       C.accentA20,
-                      blurRadius:  8,
-                      spreadRadius: 2,
-                    )]
-                  : null,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // borda esquerda colorida
+            Container(
+              width: 3,
+              color: st.borderL,
             ),
-          ),
-          const SizedBox(width: 14),
-
-          // status e alerta
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // linha 1: ícone + status em JetBrains Mono
-                Row(
+            // conteúdo
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
                   children: [
-                    Icon(st.icon, color: st.text, size: 14),
-                    const SizedBox(width: 6),
-                    Text(dados.status,
-                        style: T.statusText.copyWith(color: st.text)),
+                    Container(
+                      width:  10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: st.led,
+                        shape: BoxShape.circle,
+                        boxShadow: st.led == C.accent
+                            ? const [BoxShadow(
+                                color:       C.accentA20,
+                                blurRadius:  8,
+                                spreadRadius: 2,
+                              )]
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(st.icon, color: st.text, size: 14),
+                              const SizedBox(width: 6),
+                              Text(dados.status,
+                                  style: T.statusText.copyWith(color: st.text)),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text('Alerta: ${dados.alerta}', style: T.small),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                // linha 2: alerta em texto secundário
-                Text('Alerta: ${dados.alerta}', style: T.small),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // formata DateTime p/ "HH:MM:SS" — exibido no timestamp de atualização
   String _formatarHora(DateTime dt) {
